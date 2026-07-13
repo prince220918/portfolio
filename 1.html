@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width,initial-scale=1" />
+	<title>Radadiya Prince S — Video Editing Portfolio</title>
+	<style>
+		:root{--bg:#0b0f14;--card:#0f1720;--accent:#ff6b6b;--muted:#98a0aa}
+		html,body{height:100%;margin:0;font-family:Inter,system-ui,Arial;background:linear-gradient(180deg,#010406 0%,#071022 60%);color:#e6eef6}
+		.wrap{max-width:1100px;margin:36px auto;padding:28px}
+		header{display:flex;gap:20px;align-items:center}
+		.avatar{width:96px;height:96px;border-radius:12px;background:linear-gradient(135deg,var(--accent),#6b9bff);display:flex;align-items:center;justify-content:center;font-weight:700}
+		h1{margin:0;font-size:24px}
+		.role{color:var(--muted);margin-top:6px}
+		.meta{margin-left:auto;text-align:right;color:var(--muted)}
+		.hero{display:grid;grid-template-columns:1fr 340px;gap:24px;margin-top:24px}
+		.panel{background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);padding:18px;border-radius:12px;box-shadow:0 6px 30px rgba(2,6,23,0.6)}
+		.upload-area{display:flex;flex-direction:column;gap:8px}
+		input[type=file]{display:block}
+		button{background:var(--accent);border:none;color:#061018;padding:10px 12px;border-radius:8px;cursor:pointer}
+		.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;margin-top:20px}
+		.card{background:var(--card);padding:10px;border-radius:10px;overflow:hidden;position:relative}
+		video{width:100%;height:170px;object-fit:cover;border-radius:8px}
+		.caption{padding:8px;color:var(--muted);font-size:13px}
+		.login{display:flex;gap:8px}
+		.notice{color:var(--muted);font-size:13px;padding:8px}
+		.brand{font-weight:700;color:var(--accent)}
+		.pulse{animation:pulse 2s infinite}
+		@keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.02)}100%{transform:scale(1)}}
+	</style>
+</head>
+<body>
+	<div class="wrap">
+		<header>
+			<div class="avatar">RP</div>
+			<div>
+				<h1>Radadiya Prince S</h1>
+				<div class="role">VIDEO EDITOR — Motion Graphics & Presentation</div>
+			</div>
+			<div class="meta">
+				<div>pr22092006@gmail.com</div>
+				<div style="margin-top:6px">Contact: 9316763783</div>
+			</div>
+		</header>
+
+		<div class="hero">
+			<div class="panel">
+				<div style="display:flex;justify-content:space-between;align-items:center">
+					<div>
+						<div style="font-weight:700">Portfolio Gallery</div>
+						<div class="notice">All uploaded edits appear here for visitors. Uploading is restricted to owner account only.</div>
+					</div>
+					<div class="login">
+						<div id="userEmail" style="color:var(--muted)"></div>
+						<button id="authBtn">Sign in</button>
+					</div>
+				</div>
+
+				<div id="gallery" class="gallery" aria-live="polite"></div>
+			</div>
+
+			<aside class="panel">
+				<div style="font-weight:700">Owner Upload</div>
+				<div class="notice">Only the owner (pr22092006@gmail.com) can upload. Sign in with Google to upload.</div>
+				<div id="uArea" class="upload-area" style="margin-top:12px;display:none">
+					<input id="file" type="file" accept="video/*" />
+					<input id="title" placeholder="Title (eg: Promo edit)" />
+					<button id="uploadBtn">Upload</button>
+					<div id="status" class="notice"></div>
+				</div>
+				<div style="margin-top:18px">
+					<div style="font-weight:700">Software</div>
+					<div class="notice">capcut, premiere pro</div>
+				</div>
+			</aside>
+		</div>
+	</div>
+
+	<!-- Firebase SDKs -->
+	<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+	<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+	<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+	<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+
+	<script>
+		// TODO: Replace with your Firebase project config
+		const firebaseConfig = {
+			apiKey: "YOUR_API_KEY",
+			authDomain: "YOUR_AUTH_DOMAIN",
+			projectId: "YOUR_PROJECT_ID",
+			storageBucket: "YOUR_STORAGE_BUCKET",
+			messagingSenderId: "YOUR_MESSAGING_ID",
+			appId: "YOUR_APP_ID"
+		};
+		firebase.initializeApp(firebaseConfig);
+		const auth = firebase.auth();
+		const db = firebase.firestore();
+		const storage = firebase.storage();
+
+		const ownerEmail = 'pr22092006@gmail.com';
+
+		const authBtn = document.getElementById('authBtn');
+		const userEmailEl = document.getElementById('userEmail');
+		const uArea = document.getElementById('uArea');
+		const fileIn = document.getElementById('file');
+		const uploadBtn = document.getElementById('uploadBtn');
+		const status = document.getElementById('status');
+		const gallery = document.getElementById('gallery');
+
+		authBtn.addEventListener('click', ()=>{
+			if(auth.currentUser) auth.signOut(); else {
+				const provider = new firebase.auth.GoogleAuthProvider();
+				auth.signInWithPopup(provider);
+			}
+		});
+
+		auth.onAuthStateChanged(u=>{
+			if(u){
+				userEmailEl.textContent = u.email;
+				authBtn.textContent = 'Sign out';
+				if(u.email === ownerEmail) uArea.style.display = 'flex'; else uArea.style.display = 'none';
+			} else { userEmailEl.textContent=''; authBtn.textContent='Sign in'; uArea.style.display='none'; }
+		});
+
+		uploadBtn.addEventListener('click', async ()=>{
+			const f = fileIn.files[0];
+			const title = document.getElementById('title').value || 'Untitled';
+			if(!f){status.textContent='Select a video file';return}
+			status.textContent='Uploading...';
+			try{
+				const ref = storage.ref().child('edits/'+Date.now()+'_'+f.name);
+				const snap = await ref.put(f);
+				const url = await snap.ref.getDownloadURL();
+				await db.collection('edits').add({title, url, created: firebase.firestore.FieldValue.serverTimestamp()});
+				status.textContent='Uploaded — refresh will show to visitors';
+				fileIn.value=''; document.getElementById('title').value='';
+			}catch(e){status.textContent='Upload failed';}
+		});
+
+		// realtime gallery
+		db.collection('edits').orderBy('created','desc').onSnapshot(snap=>{
+			gallery.innerHTML='';
+			snap.forEach(doc=>{
+				const d = doc.data();
+				const card = document.createElement('div'); card.className='card';
+				const v = document.createElement('video'); v.src = d.url; v.controls = true; v.setAttribute('playsinline','');
+				const cap = document.createElement('div'); cap.className='caption'; cap.textContent = d.title || '';
+				card.appendChild(v); card.appendChild(cap);
+				gallery.appendChild(card);
+			});
+		});
+
+	</script>
+</body>
+</html>
